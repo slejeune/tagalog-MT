@@ -29,12 +29,12 @@ def create_train_test_split() -> None:
     parallel = data.read_parallel(paths[0],paths[1])
     data.save_train_test_split(parallel)
 
-def load_data():
+def load_data() -> DatasetDict:
     '''
     Loads the pickled train/test split created with 'create_train_test_split()'
     
     Returns:
-        dict: the loaded parallel train/test split
+        DatasetDict: the loaded parallel train/test split
     '''
     data = Data()
     return data.read_train_test_split()
