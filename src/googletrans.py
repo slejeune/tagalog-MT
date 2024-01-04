@@ -28,7 +28,7 @@ class GoogleTranslate:
         '''
         
         translations = []
-        for i in tqdm(range(len(src))):
+        for i in tqdm.tqdm(range(len(src))):
             # print("PROGRESS: " + str(i+1) + "/" + str(len(src)))
             
             try:

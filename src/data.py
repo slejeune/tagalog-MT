@@ -72,25 +72,34 @@ class Data:
         
         data = data["train"].train_test_split(test_size=test_split)
         
+        data_train = data['train'].train_test_split(test_size=test_split)
+        data_test = data_train['test'].train_test_split(test_size=0.5)
+
+        data = DatasetDict({
+            'train': data_train['train'],
+            'valid': data_test['train'],
+            'test': data_test['test']
+        })
+        
         return data
     
-    def save_train_test_split(self, parallel:DatasetDict) -> None:
+    def save_train_test_split(self, parallel:DatasetDict, version_name:str) -> None:
         '''
         Pickle the given dataset and save it to the directory.
         
         Args:
             parallel: the parallel dataset containing the text in source and target language
         '''
-        with open('parallel_train_test_split.pkl', 'wb') as f:
+        with open(version_name+'.pkl', 'wb') as f:
             pickle.dump(parallel, f)
     
-    def read_train_test_split(self) -> DatasetDict:
+    def read_train_test_split(self, version_name:str) -> DatasetDict:
         '''
         Read the previously saved dataset from the directory.
         
         Returns:
             DatasetDict: the parallel dataset containing the text in source and target language
         '''
-        with open('parallel_train_test_split.pkl', 'rb') as f:
+        with open(version_name+'.pkl', 'rb') as f:
             loaded_dict = pickle.load(f)
         return loaded_dict

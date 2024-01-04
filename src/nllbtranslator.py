@@ -8,12 +8,16 @@ from datasets.dataset_dict import DatasetDict
 
 class NLLBTranslator:
     
-    def __init__(self, src:str, tgt:str):
+    def __init__(self, src:str, tgt:str, finetuned:bool=False):
         self.src = src
         self.tgt = tgt
         
         self.tokenizer = NllbTokenizer.from_pretrained("facebook/nllb-200-distilled-600M", src_lang=src, tgt_lang=tgt)
-        self.model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
+        
+        if finetuned:
+            self.model = AutoModelForSeq2SeqLM.from_pretrained("finetuned/")
+        else:
+            self.model = AutoModelForSeq2SeqLM.from_pretrained("facebook/nllb-200-distilled-600M")
         
         self.checkpoint = "t5-small"
         self.data_collator = DataCollatorForSeq2Seq(tokenizer=self.tokenizer, model=self.checkpoint, return_tensors="tf")
@@ -52,7 +56,7 @@ class NLLBTranslator:
             
         tokenized = parallel.map(function=self.preprocess_function, batched=True)
         
-        batch_size = 16
+        batch_size = 8
         
         model_name = self.checkpoint.split("/")[-1]
         
@@ -74,7 +78,7 @@ class NLLBTranslator:
             self.model,
             args,
             train_dataset=tokenized["train"],
-            eval_dataset=tokenized["test"],
+            eval_dataset=tokenized["valid"],
             data_collator=data_collator,
             tokenizer=self.tokenizer,
             compute_metrics=eval_class.compute_metrics
@@ -83,8 +87,8 @@ class NLLBTranslator:
         print("START TRAINING...")
         trainer.train()
         print("TRAINING DONE")
-        
-        # Apparently the model is saved automatically if the finetuning succeeds
+
+        trainer.save_model("finetuned/")
     
     def preprocess_function(self, examples:DatasetDict) -> DatasetDict:
         '''

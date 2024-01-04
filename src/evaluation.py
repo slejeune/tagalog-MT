@@ -4,12 +4,15 @@ if TYPE_CHECKING:
 
 import evaluate
 import numpy as np
+from transformers import NllbTokenizer
 
 class Evaluation:
     
-    def __init__(self):
+    def __init__(self, src:str="tgl_Latn", tgt:str="eng_Latn"):
         self.bleu = evaluate.load("sacrebleu")
         self.comet = evaluate.load('comet')
+        
+        self.tokenizer = NllbTokenizer.from_pretrained("facebook/nllb-200-distilled-600M", src_lang=src, tgt_lang=tgt)
     
     def eval(self, predictions:list, labels:list, source:list) -> dict:
         '''
@@ -50,7 +53,7 @@ class Evaluation:
 
         decoded_preds, decoded_labels = self.postprocess_text(decoded_preds, decoded_labels)
 
-        result = self.metric.compute(predictions=decoded_preds, references=decoded_labels)
+        result = self.bleu.compute(predictions=decoded_preds, references=decoded_labels)
         result = {"bleu": result["score"]}
 
         prediction_lens = [np.count_nonzero(pred != self.tokenizer.pad_token_id) for pred in preds]

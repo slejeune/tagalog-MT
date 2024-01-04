@@ -3,19 +3,52 @@ from tqdm import tqdm
 from datasets.dataset_dict import DatasetDict
 
 def main():
-    # create_train_test_split()
+    version = 'v2'
     
-    data = load_data()
+    create_train_test_split(version)
     
-    # pred = googletranslate(data)
-    pred = nllbbaseline(data)
-    # pred = ["yup" for x in range(len(data["test"]))] # For checking if evaluation works
+    # data = load_data(version)
+    # save_txtfile(data, version)
     
     # nllbfinetuning(data)
     
-    evaluate(data, pred)
+    # pred_NLLB = nllb(data, finetuned=False)
+    # pred_NLLB_finetuned = nllb(data, finetuned=True)
+    # pred_GT = googletranslate(data)
+    # pred_GT_manual = load_pred_txtfile('googletrans'+version+'.txt')
+    
+    # order_list = ["NLLB", "NLLB finetuned", "Google Translate auto", "Google Translate manual"]
+    # pred = [pred_NLLB, pred_NLLB_finetuned, pred_GT, pred_GT_manual]
+    
+    # evaluate(data, pred, order_list=order_list)
+    
+def load_pred_txtfile(filename:str) -> list:
+    '''
+    Loads the predictions in the target language from an external txt file
+    
+    Returns:
+        list: the list of the predictions in the target language
+    '''
+    with open(filename) as f:
+        pred = f.readlines()
+        
+    for i in range(len(pred)):
+            pred[i] = pred[i].replace("\n", "")
+            
+    return pred
 
-def create_train_test_split() -> None:
+def save_txtfile(data:DatasetDict, version:str) -> None:
+    '''
+    Save the test set of the source to a txt file.
+    
+    Args:
+        data: the dataset the test set in the source language comes from
+    '''
+    with open("tagalog"+version+".txt","w") as wr:
+        for line in data["test"]:
+            wr.write(line['translation']['tg'] + '\n\n')
+
+def create_train_test_split(version_name:str) -> None:
     '''
     Creates a train/test split and saves that split as a pickle.
     '''
@@ -27,9 +60,9 @@ def create_train_test_split() -> None:
     
     data = Data()
     parallel = data.read_parallel(paths[0],paths[1])
-    data.save_train_test_split(parallel)
+    data.save_train_test_split(parallel, version_name)
 
-def load_data() -> DatasetDict:
+def load_data(version_name:str) -> DatasetDict:
     '''
     Loads the pickled train/test split created with 'create_train_test_split()'
     
@@ -37,9 +70,9 @@ def load_data() -> DatasetDict:
         DatasetDict: the loaded parallel train/test split
     '''
     data = Data()
-    return data.read_train_test_split()
+    return data.read_train_test_split(version_name)
     
-def evaluate(parallel:DatasetDict, pred:list, single_sentence=False) -> None:
+def evaluate(parallel:DatasetDict, pred:list, single_sentence:bool=False, order_list:list=[]) -> None:
     '''
     Evaluate a prediction using the BLEU and COMET scores.
     
@@ -54,23 +87,33 @@ def evaluate(parallel:DatasetDict, pred:list, single_sentence=False) -> None:
     
     if single_sentence:
         print("original: " + parallel["test"][0]['translation']['tg'])
-        print("pred: " + pred[0])
+        print("pred: " + str(pred[0]))
         print("label: "+ parallel["test"][0]['translation']['en'])
         print(eval.eval([pred[0]], [parallel["test"][0]['translation']['en']], [parallel["test"][0]['translation']['tg']]))
+    if type(pred[0])==list:
+        with open("all_scores.txt","w") as wr:
+            for i in range(len(pred)):
+                evaluation = eval.eval(pred[i], labels, sources)
+                wr.write('------------' + order_list[i] + '------------\n')
+                wr.write('BLEU: ' + str(evaluation['bleu']['score']) + '\n')
+                wr.write('COMET: ' + str(evaluation['comet']['mean_score']) + '\n')
+                wr.write('Full eval: ' + str(evaluation))
+                wr.write('\n\n')
     else:
         print(eval.eval(pred, labels, sources))
     
-def nllbbaseline(parallel:DatasetDict) -> list: 
+def nllb(parallel:DatasetDict, finetuned=False) -> list: 
     '''
     Generates the predicted translations using Meta's No Language Left Behind (NLLB) model.
     
     Args:
         parallel: the parallel dataset containing the text in source and target language
+        finetuned: bool whether to use the finetuned version of the model or not
         
     Returns:
         list: the predicted translations in the target language
     '''
-    translator = NLLBTranslator(src="tgl_Latn", tgt="eng_Latn")
+    translator = NLLBTranslator(src="tgl_Latn", tgt="eng_Latn", finetuned=finetuned)
     test = [parallel["test"][i]['translation']['tg'] for i in range(len(parallel['test']))]
 
     print("Translating " + str(len(test)) + " sentence(s)")
