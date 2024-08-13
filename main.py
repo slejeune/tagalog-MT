@@ -3,17 +3,19 @@ from tqdm import tqdm
 from datasets.dataset_dict import DatasetDict
 
 def main():
-    version = 'v2'
+    version = 'trivial'
     
-    create_train_test_split(version)
+    # create_train_test_split(version)
     
-    # data = load_data(version)
+    data = load_data(version)
     # save_txtfile(data, version)
     
-    # nllbfinetuning(data)
+    print(data)
     
-    # pred_NLLB = nllb(data, finetuned=False)
-    # pred_NLLB_finetuned = nllb(data, finetuned=True)
+    nllbfinetuning(data, version)
+    
+    # pred_NLLB = nllb(data, version, finetuned=False)
+    # pred_NLLB_finetuned = nllb(data, version, finetuned=True)
     # pred_GT = googletranslate(data)
     # pred_GT_manual = load_pred_txtfile('googletrans'+version+'.txt')
     
@@ -39,7 +41,7 @@ def load_pred_txtfile(filename:str) -> list:
 
 def save_txtfile(data:DatasetDict, version:str) -> None:
     '''
-    Save the test set of the source to a txt file.
+    Save the test set of the source to a txt file (for manual evaluation).
     
     Args:
         data: the dataset the test set in the source language comes from
@@ -59,7 +61,7 @@ def create_train_test_split(version_name:str) -> None:
     paths = path_file.read().splitlines()
     
     data = Data()
-    parallel = data.read_parallel(paths[0],paths[1])
+    parallel = data.read_parallel(paths[0],paths[1],paths[2],paths[3])
     data.save_train_test_split(parallel, version_name)
 
 def load_data(version_name:str) -> DatasetDict:
@@ -102,18 +104,19 @@ def evaluate(parallel:DatasetDict, pred:list, single_sentence:bool=False, order_
     else:
         print(eval.eval(pred, labels, sources))
     
-def nllb(parallel:DatasetDict, finetuned=False) -> list: 
+def nllb(parallel:DatasetDict, version:str, finetuned=False) -> list: 
     '''
     Generates the predicted translations using Meta's No Language Left Behind (NLLB) model.
     
     Args:
         parallel: the parallel dataset containing the text in source and target language
+        version: which version of the finetuned model to use
         finetuned: bool whether to use the finetuned version of the model or not
         
     Returns:
         list: the predicted translations in the target language
     '''
-    translator = NLLBTranslator(src="tgl_Latn", tgt="eng_Latn", finetuned=finetuned)
+    translator = NLLBTranslator(src="tgl_Latn", tgt="eng_Latn", version=version, finetuned=finetuned)
     test = [parallel["test"][i]['translation']['tg'] for i in range(len(parallel['test']))]
 
     print("Translating " + str(len(test)) + " sentence(s)")
@@ -121,14 +124,15 @@ def nllb(parallel:DatasetDict, finetuned=False) -> list:
     
     return pred
     
-def nllbfinetuning(parallel:DatasetDict) -> None:
+def nllbfinetuning(parallel:DatasetDict, version:str) -> None:
     '''
     Finetunes Meta's No Language Left Behind (NLLB) model on the given data. The model is automatically saved to the directory.
     
     Args:
         parallel: the parallel dataset containing the text in source and target language
+        version: which version to save the finetuned model as
     '''
-    translator = NLLBTranslator(src="tgl_Latn", tgt="eng_Latn")
+    translator = NLLBTranslator(src="tgl_Latn", tgt="eng_Latn", version=version)
     eval = Evaluation()
     translator.finetuning(parallel, eval)
     
